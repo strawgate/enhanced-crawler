@@ -1,0 +1,248 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'yaml'
+require 'fileutils'
+require 'pathname'
+require 'English' # For $CHILD_STATUS
+
+begin
+  require 'bundler/setup'
+rescue LoadError => e
+  warn "LoadError: #{e.message}"
+  warn "Run 'bundle install' to install missing gems."
+  exit 1
+end
+ 
+require_relative '../lib/enhanced_crawler'
+require_relative '../lib/enhanced_crawler/config_validator'
+
+module EnhancedCrawler
+  class Wrapper
+    JRUBY_SCRIPT_PATH = ENV.fetch('JRUBY_SCRIPT_PATH', 'bin/crawler')
+    STATIC_TEMP_DIR = ENV.fetch('STATIC_TEMP_DIR', '/tmp/enhanced_crawler_data')
+
+    def initialize(argv)
+      @original_argv = argv.dup
+      @command, @config_path = _parse_arguments(@original_argv)
+      @static_temp_dir = STATIC_TEMP_DIR
+
+      @validated_config = nil
+      @final_config = nil
+
+      @dns_server = nil
+      @web_server = nil
+      @git_cloner = nil
+
+      @cleanup_registered = false
+    end
+
+    def run
+      unless @config_path
+        warn "No config path provided or invalid arguments. Executing crawler directly..."
+        _execute_crawler(@original_argv)
+        return # Should not be reached if exec works
+      end
+
+      warn "Preprocessing configuration: #{@config_path}"
+      warn "Using static temp directory: #{@static_temp_dir}"
+
+      FileUtils.mkdir_p(@static_temp_dir) unless Dir.exist?(@static_temp_dir)
+
+      _load_and_validate_config
+      _setup_services
+      _setup_cleanup_handler # Moved earlier
+      _configure_services_from_config
+      _start_services
+      transformed_config_path = _write_transformed_config
+      _execute_crawler([@command, transformed_config_path])
+
+    rescue EnhancedCrawler::ConfigValidationError => e
+      warn "Configuration Error: #{e.message}"
+      # No _cleanup call needed here
+      exit 1
+    rescue EnhancedCrawler::GitCloneError => e
+      warn "Git Clone Error: #{e.message}"
+      # No _cleanup call needed here
+      exit 1
+    rescue EnhancedCrawler::DnsServerError => e
+      warn "DNS Server Error: #{e.message}"
+      # No _cleanup call needed here
+      exit 1
+    rescue EnhancedCrawler::WebServerStartError => e # Added specific handler
+      warn "Web Server Error: #{e.message}"
+      # No _cleanup call needed here
+      exit 1
+    rescue Interrupt
+      warn "\nInterrupted by user." # Cleanup handled by at_exit
+      # No _cleanup call needed here
+      exit 130
+    rescue StandardError => e
+      warn "\n" + "=" * 70
+      warn "An unexpected error occurred: #{e.message}"
+      warn "=" * 70
+      warn e.backtrace.join("\n")
+      # No _cleanup call needed here
+      exit 1
+    end
+
+    private
+
+    def _parse_arguments(argv)
+      command = nil
+      config_path = nil
+      if %w[crawl schedule validate].include?(argv[0]) && argv[1] && !argv[1].start_with?('-')
+        command = argv[0]
+        config_path = argv[1]
+      end
+      [command, config_path]
+    end
+
+    def _load_and_validate_config
+      raise EnhancedCrawler::ConfigValidationError, "Config path not specified." unless @config_path
+
+      warn "Loading config from: #{@config_path}"
+      begin
+        raw_config = YAML.load_file(@config_path)
+        raise EnhancedCrawler::ConfigValidationError, "Config file is empty or invalid YAML." unless raw_config.is_a?(Hash)
+      rescue Errno::ENOENT
+        raise EnhancedCrawler::ConfigValidationError, "Config file not found: #{@config_path}"
+      rescue Psych::SyntaxError => e
+        raise EnhancedCrawler::ConfigValidationError, "YAML parse error in config: #{e.message}"
+      end
+
+      warn "Validating configuration..."
+
+      validator = EnhancedCrawler::ConfigValidator.new(raw_config)
+      @validated_config = validator.validate! # Raises ConfigValidationError on failure
+
+      warn "Configuration validation successful."
+    end
+
+    def _setup_services
+      warn "Setting up services..."
+      @dns_server = DnsServer.new(@static_temp_dir)
+      @web_server = WebServer.new
+      @git_cloner = GitCloner.new(@static_temp_dir)
+    end
+
+    def _configure_services_from_config
+      warn "Processing repositories and directories..."
+      @final_config = @validated_config.reject { |k, _| [:repositories, :directories].include?(k) }
+      @final_config['domains'] ||= [] # Ensure 'domains' key exists
+
+      resources = []
+      @validated_config.fetch(:repositories, []).each_with_index { |entry, i| resources << { type: :repository, index: i, data: entry } }
+      @validated_config.fetch(:directories, []).each_with_index { |entry, i| resources << { type: :directory, index: i, data: entry } }
+
+      resources.each do |resource|
+        entry = resource[:data]
+        index = resource[:index]
+        type = resource[:type]
+
+        base_uri = entry[:url]
+        hostname = base_uri.host
+
+        @dns_server.add_host(hostname)
+
+        entry_seed_urls = []
+
+        if type == :repository
+          repo_base_dir_name = "repo_#{index}"
+          repo_base_path = File.join(@static_temp_dir, repo_base_dir_name)
+          any_clone_succeeded = false
+
+          entry[:git_urls].each_with_index do |git_url_obj, git_index|
+            git_url_str = git_url_obj.is_a?(URI::Generic) ? git_url_obj.to_s : git_url_obj
+            relative_clone_dir = "clone_#{git_index}"
+            destination_dir_name = File.join(repo_base_dir_name, relative_clone_dir)
+
+            success, result = @git_cloner.clone(git_url_str, destination_dir_name)
+
+            unless success
+              raise EnhancedCrawler::GitCloneError, "Failed to clone repository '#{git_url_str}' to '#{destination_dir_name}'. Git stderr: #{result}"
+            end
+
+            # If we reach here, clone was successful
+            cloned_path = result # Assign the path from the result
+            any_clone_succeeded = true
+
+            @web_server.add_vhost_root(hostname, repo_base_path)
+
+            seed_uri = base_uri.dup
+            seed_uri.path = Pathname.new('/').join(relative_clone_dir).to_s
+            entry_seed_urls << seed_uri.to_s
+          end
+          next unless any_clone_succeeded
+        elsif type == :directory
+          entry[:mounts].each do |mount_data|
+            source_path = File.expand_path(mount_data[:local_path])
+            dest_uri = mount_data[:dest_uri]
+
+            @web_server.add_vhost_mount(hostname, dest_uri.path, source_path)
+            entry_seed_urls << dest_uri.to_s
+          end
+          next if entry_seed_urls.empty? && !entry[:mounts].empty?
+        end
+
+        unless entry_seed_urls.empty?
+          final_entry_data = entry.reject { |k, _| [:git_urls, :mounts].include?(k) }
+          final_entry_data[:url] = final_entry_data[:url].to_s
+          final_entry_data[:seed_urls] = entry_seed_urls
+
+          final_entry_string_keys = final_entry_data.transform_keys(&:to_s)
+          @final_config['domains'] << final_entry_string_keys
+        end
+      end
+      warn "Finished processing resources."
+    end
+
+    def _start_services
+      warn "Starting services..."
+      @dns_server.start! # Raises DnsServerError on failure
+      @web_server.start! # Raises WebServerStartError on failure
+      warn "Services started."
+    end
+
+    def _write_transformed_config
+      transformed_config_path = File.join(@static_temp_dir, 'transformed_config.yml')
+      warn "Writing transformed configuration to: #{transformed_config_path}"
+      begin
+        File.write(transformed_config_path, YAML.dump(@final_config))
+        transformed_config_path
+      rescue StandardError => e
+        warn "Error writing transformed config file: #{e.message}"
+        # Cleanup handled by at_exit
+        exit 1
+      end
+    end
+
+    def _execute_crawler(args)
+      warn "Executing: jruby #{JRUBY_SCRIPT_PATH} #{args.join(' ')}"
+      exec('jruby', JRUBY_SCRIPT_PATH, *args)
+    # Removed Errno::ENOENT rescue; exec handles this by exiting.
+    end
+
+    def _setup_cleanup_handler
+      return if @cleanup_registered
+
+      dns_server_ref = @dns_server
+      web_server_ref = @web_server
+
+      at_exit do
+        dns_server_ref&.cleanup
+        web_server_ref&.stop!
+      end
+      @cleanup_registered = true
+    end
+
+    # Removed manual _cleanup method; at_exit handler is now solely responsible.
+
+  end # End EnhancedCrawler::Wrapper class
+end # End EnhancedCrawler module
+
+if $PROGRAM_NAME == __FILE__
+  # class ConfigValidationError < StandardError; end unless defined?(ConfigValidationError)
+  wrapper = EnhancedCrawler::Wrapper.new(ARGV.dup)
+  wrapper.run
+end

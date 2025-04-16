@@ -1,0 +1,36 @@
+en:
+  dry_validation:
+    errors:
+      rules:
+        # Error messages for rules defined within the contract
+        directories:
+          mounts: # Corresponds to the rule(:directories).each -> mounts check
+            invalid_mount_host: "destination hostname '%{dest_host}' must match base URL hostname '%{base_host}'"
+            invalid_mount_path: "destination URL path cannot be empty or root ('/')"
+        # Error message for the top-level hostname uniqueness rule
+        # The key used in key().failure() determines the path here.
+        # Since we used key(path).failure where path was like [:domains, 0, :url]
+        url: # This applies when the error is attached directly to a :url key
+          not_unique: "hostname '%{host}' is not unique, it conflicts with other entries"
+
+      # Error messages for predicates (used by schema type checks and explicit predicate checks)
+      predicates:
+        http_url?: "must be a valid HTTP/HTTPS URL"
+        # Custom message for the check_path_empty: true variant
+        http_url?_check_path_empty_true: "must be a valid HTTP/HTTPS URL without a path"
+        git_url?: "must be a valid Git URL (http, https, ssh, git)"
+        # Potentially add messages for MountString format if needed, though coercion errors might be sufficient
+        # mount_string_format?: "invalid mount format. Expected '/absolute/local/path:http://host/mount_path'"
+
+      # Error messages related to Types::MountString coercion failures
+      # Dry-types errors might not directly map here easily without custom error compilers.
+      # Often, coercion errors raise exceptions that Dry-validation catches and turns into generic messages.
+      # We can add specific messages if we customize the error compilation.
+      # For now, rely on the messages raised within the Type constructor if they are clear enough.
+
+      # Standard errors (examples, dry-validation provides defaults)
+      filled?: "must be filled"
+      min_size?: "size cannot be less than %{num}"
+      array?: "must be an array"
+      hash?: "must be a hash"
+      # ... other standard messages

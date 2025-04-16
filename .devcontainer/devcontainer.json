@@ -1,0 +1,14 @@
+{
+	"name": "Crawler Dev Container",
+	"image": "ghcr.io/strawgate/es-crawler:main",
+
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {
+			"version": "latest"
+		},
+		"ghcr.io/devcontainers/features/docker-in-docker:2.12.2": {
+			"version": "latest",
+			"dockerSocketBindMount": true
+		}
+	}
+}

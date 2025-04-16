@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+*.log
+*.pot
+*.pyc
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Poetry
+poetry.lock
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+nosetests.xml
+coverage.xml
+
+# Ruff cache
+.ruff_cache/
+
+# Temporary files from examples/tests
+temp_serve_dir/
+dummy_config.yml
+
+# OS generated files
+.DS_Store?
+ehthumbs.db
+Thumbs.db
+
+# Plans
+plans
+archive
+references

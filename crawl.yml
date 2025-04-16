@@ -1,0 +1,67 @@
+
+# from https://github.com/elastic/crawler/blob/main/config/crawler.yml.example
+domains:
+ - url: http://localhost         # The base URL for this domain
+   seed_urls:                         # The entry point(s) for crawl jobs
+     - http://localhost/foo
+     - http://localhost/bar
+   sitemap_urls:                      # The location(s) of sitemap files
+     - http://localhost/sitemap.xml
+
+   # An array of crawl rules
+   # See docs/features/CRAWL_RULES.md for more details on this feature
+   crawl_rules:
+     - policy: deny       # the policy for this rule, either: allow | deny
+       type: begins       # the type of rule, any of: begins | ends | contains | regex
+       pattern: /blog     # the pattern string for the rule
+
+   # An array of content extraction rules
+   # See docs/features/EXTRACTION_RULES.md for more details on this feature
+   extraction_rulesets:
+     - url_filters:
+         - type: begins           # Filter type, can be: begins | ends | contains | regex
+           pattern: /blog         # The pattern for the filter
+       rules:
+         - action: extract        # Rule action, can be: extract | set
+           field_name: author     # The ES doc field to add the value to
+           selector: .author      # CSS or XPATH selector if source is `html`, regexp if source is `url`
+           join_as: array         # How to concatenate multiple values, can be: array | string
+           value: yes             # The value to use, only applicable if action is `set`
+           source: html           # The source to extract from, can be: html | url
+
+# What we support via this "Enhanced Crawler". These will get picked up by our wrapper, used to server the content via a webserver.
+# Then we will translate these to normal `domain` entries in the crawler config.
+repositories:
+  url: https://github.com
+  git_urls:
+    - https://github.com/strawgate/mcp-many-files.git
+    - https://github.com/strawgate/fastmcp.git
+  crawl_rules:
+    - policy: allow
+      type: begins
+      pattern: /elastic/crawler
+
+directories:
+- url: https://filesystem.local
+  mounts:
+    - /var/log:https://filesystem.local/var/log
+    - /etc:https://filesystem.local/etc
+  crawl_rules:
+    - policy: allow
+      type: begins
+      pattern: /foo
+  extraction_rulesets:
+    - url_filters:
+        - type: begins
+          pattern: /foo
+      rules:
+        - action: extract
+          field_name: author
+          selector: .author
+          join_as: array
+          value: yes
+          source: html
+
+
+
+output_sink: console
