@@ -1,0 +1,10 @@
+domains: []
+repositories:
+  - url: https://github.com
+    git_urls:
+      - not-a-valid-git-url
+directories:
+  - url: https://filesystem.local
+    mounts:
+      - /invalid/mount/format
+output_sink: console

@@ -1,0 +1,8 @@
+domains: []
+repositories:
+  - url: https://github.com
+    git_urls: []
+directories:
+  - url: https://filesystem.local
+    mounts: []
+output_sink: console

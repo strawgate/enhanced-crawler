@@ -1,0 +1,11 @@
+domains: []
+repositories:
+  - url: https://github.com
+    git_urls:
+      - https://github.com/user/repo1.git
+      - git@github.com:user/repo2.git
+    crawl_rules:
+      - policy: deny
+        type: ends
+        pattern: .md
+output_sink: console

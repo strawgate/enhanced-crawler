@@ -32,14 +32,14 @@ domains:
 # What we support via this "Enhanced Crawler". These will get picked up by our wrapper, used to server the content via a webserver.
 # Then we will translate these to normal `domain` entries in the crawler config.
 repositories:
-  url: https://github.com
-  git_urls:
-    - https://github.com/strawgate/mcp-many-files.git
-    - https://github.com/strawgate/fastmcp.git
-  crawl_rules:
-    - policy: allow
-      type: begins
-      pattern: /elastic/crawler
+  - url: https://github.com
+    git_urls:
+      - https://github.com/strawgate/mcp-many-files.git
+      - https://github.com/strawgate/fastmcp.git
+    crawl_rules:
+      - policy: allow
+        type: begins
+        pattern: /elastic/crawler
 
 directories:
 - url: https://filesystem.local

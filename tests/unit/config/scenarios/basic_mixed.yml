@@ -1,0 +1,38 @@
+domains:
+  - url: http://existing.com
+    seed_urls:
+      - http://existing.com/seed
+    crawl_rules:
+      - policy: allow
+        type: begins
+        pattern: http://existing.com/
+    extraction_rulesets: []
+repositories:
+  - url: https://github.com
+    git_urls:
+      - https://github.com/user/repo1.git
+      - git@github.com:user/repo2.git
+    crawl_rules:
+      - policy: deny
+        type: ends
+        pattern: .md
+    extra_repo_field: repo_pass_through
+directories:
+  - url: https://filesystem.local
+    mounts:
+      - /var/log:https://filesystem.local/var/log
+      - /etc:https://filesystem.local/etc
+    extraction_rulesets:
+      - url_filters:
+          - type: contains
+            pattern: /data/
+        rules:
+          - action: set
+            field_name: source
+            selector: ""
+            value: local_directory
+            join_as: string
+            source: url
+    extra_dir_field: 456  
+output_sink: console
+other_top_level_field: pass_through_this_too

@@ -1,54 +1,29 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg-info/
-dist/
-build/
-*.egg
-*.log
-*.pot
+# Byte-code files
 *.pyc
+__pycache__/
 
-# Virtual environment
-.venv/
+# Distribution / packaging
+.Python
+env/
 venv/
 ENV/
-env/
 env.bak/
 venv.bak/
 
-# Poetry
-poetry.lock
-
-# IDEs and Editors
-.idea/
+# Editors
 .vscode/
-*.swp
-*~
-.DS_Store
+.idea/
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-nosetests.xml
-coverage.xml
-
-# Ruff cache
-.ruff_cache/
-
-# Temporary files from examples/tests
-temp_serve_dir/
-dummy_config.yml
+# Logs and databases
+*.log
+*.sqlite
+*.sqlite3
 
 # OS generated files
-.DS_Store?
-ehthumbs.db
+.DS_Store
 Thumbs.db
 
-# Plans
-plans
-archive
-references
+# Poetry
+.venv/
+web
+dist

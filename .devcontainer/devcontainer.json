@@ -6,9 +6,27 @@
 		"ghcr.io/devcontainers/features/git:1": {
 			"version": "latest"
 		},
+		"ghcr.io/devcontainers/features/python:1": {
+			"version": "3.13",
+			"toolsToInstall": [
+				"pip",
+				"poetry",
+				"uvicorn",
+				"pytest"
+			]
+		},
 		"ghcr.io/devcontainers/features/docker-in-docker:2.12.2": {
 			"version": "latest",
 			"dockerSocketBindMount": true
+		}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"connorshea.vscode-ruby-test-adapter",
+				"streetsidesoftware.code-spell-checker",
+				"rubocop.vscode-rubocop"
+			]
 		}
 	}
 }

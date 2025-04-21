@@ -1,0 +1,80 @@
+# serializer version: 1
+# name: test_transform_configuration_scenarios[basic_mixed]
+  dict({
+    'domains': list([
+      dict({
+        'crawl_rules': list([
+          dict({
+            'pattern': 'http://existing.com/',
+            'policy': 'allow',
+            'type': 'begins',
+          }),
+        ]),
+        'extraction_rulesets': list([
+        ]),
+        'seed_urls': list([
+          'http://existing.com/seed',
+        ]),
+        'url': 'http://existing.com',
+      }),
+      dict({
+        'crawl_rules': list([
+          dict({
+            'pattern': '.md',
+            'policy': 'deny',
+            'type': 'ends',
+          }),
+        ]),
+        'extra_repo_field': 'repo_pass_through',
+        'seed_urls': list([
+          'https://github.com/user/repo1.git',
+          'git@github.com:user/repo2.git',
+        ]),
+        'url': 'https://github.com',
+      }),
+    ]),
+    'other_top_level_field': 'pass_through_this_too',
+    'output_sink': 'console',
+  })
+# ---
+# name: test_transform_configuration_scenarios[missing_optional]
+  dict({
+    'domains': list([
+      dict({
+        'seed_urls': list([
+          'https://github.com/user/repo1.git',
+        ]),
+        'url': 'https://github.com',
+      }),
+    ]),
+    'output_sink': 'console',
+  })
+# ---
+# name: test_transform_configuration_scenarios[only_dirs]
+  dict({
+    'domains': list([
+    ]),
+    'output_sink': 'console',
+  })
+# ---
+# name: test_transform_configuration_scenarios[only_repos]
+  dict({
+    'domains': list([
+      dict({
+        'crawl_rules': list([
+          dict({
+            'pattern': '.md',
+            'policy': 'deny',
+            'type': 'ends',
+          }),
+        ]),
+        'seed_urls': list([
+          'https://github.com/user/repo1.git',
+          'git@github.com:user/repo2.git',
+        ]),
+        'url': 'https://github.com',
+      }),
+    ]),
+    'output_sink': 'console',
+  })
+# ---

@@ -1,0 +1,10 @@
+domains: []
+repositories:
+  - url: https://github.com
+    git_urls:
+      - https://github.com/user/repo1.git
+directories:
+  - url: https://filesystem.local
+    mounts:
+      - /var/log:https://filesystem.local/var/log
+output_sink: console

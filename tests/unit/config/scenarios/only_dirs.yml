@@ -1,0 +1,18 @@
+domains: []
+directories:
+  - url: https://filesystem.local
+    mounts:
+      - /var/log:https://filesystem.local/var/log
+      - /etc:https://filesystem.local/etc
+    extraction_rulesets:
+      - url_filters:
+          - type: contains
+            pattern: /data/
+        rules:
+          - action: set
+            field_name: source
+            selector: ""
+            value: local_directory
+            join_as: string
+            source: url
+output_sink: console
