@@ -9,17 +9,16 @@ from enhanced_crawler.config import (
     validate_config,
     load_config_from_yaml,
     transform_configuration,
-    get_mount_string_parts
+    get_mount_string_parts,
 )
-#from enhanced_crawler.servers.crawler_server import CrawlerServer
+
+# from enhanced_crawler.servers.crawler_server import CrawlerServer
 from enhanced_crawler.errors import Error
 from enhanced_crawler.servers.git_server import GitServer
 from enhanced_crawler.servers.dns_server import DnsServer
 from enhanced_crawler.servers.web_server import WebServer
 
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 def parse_args(args=None):
@@ -48,14 +47,13 @@ def parse_args(args=None):
         default=None,
         help="Path to the configuration file (e.g., config.yml)",
     )
-    
+
     parser.add_argument(
         "--dry-run",
         nargs="?",
         default=False,
         help="whether we're doing a dry run or not.)",
     )
-
 
     known_args, unknown_args = parser.parse_known_args(args)
 
@@ -87,54 +85,79 @@ async def run(args):
     transformed_config = transform_configuration(deepcopy(validated_config))
 
     web_server = WebServer(dry_run=dry_run)
-    git_server = GitServer(dry_run=dry_run,repository_directory="./web/repositories")
+    git_server = GitServer(dry_run=dry_run, repository_directory="./web/repositories")
     dns_server = DnsServer(dry_run=dry_run)
-    #crawler_server = CrawlerServer()
+    # crawler_server = CrawlerServer()
 
     async with (
         dns_server.manage_lifecycle(),
         web_server.manage_lifecycle(),
         git_server.manage_lifecycle(),
-        #crawler_server.manage_lifecycle(),
+        # crawler_server.manage_lifecycle(),
     ):
         logging.info("Orchestrating services and executing crawler")
 
-        for directory in raw_config.get("directories", []):
-            logging.info(f"Processing directory: {directory}")
-            domain_url = directory.get("url")
-
-            hostname, ip_address = await dns_server.add_host_by_url(url=domain_url)
-
-            for raw_mount in directory.get("mounts", []):
-                local_path, desired_uri = get_mount_string_parts(raw_mount)
-                mount_path = urlparse(desired_uri).path
-                web_server.add_vhost_mount(hostname, mount_path=mount_path, mount_point=local_path)
-                web_server.add_vhost_mount("localhost", mount_path=mount_path, mount_point=local_path)
-
-        for i, repository in enumerate(raw_config.get("repositories", [])):
-            logging.info(f"Processing repository: {repository}")
-            domain_url = repository.get("url")
-
-            hostname, ip_address = await dns_server.add_host_by_url(url=domain_url)
-
-            for j, git_url in enumerate(repository.get("git_urls", [])):
-                mount_path = urlparse(git_url).path
-                logging.info(f"Adding Git URL: {git_url}")
-                clone_path = git_server.clone_repository(
-                    repo_url=git_url,
-                    clone_dir=str(f"domain_{i}_repository_{j}"),
-                )
-                web_server.add_vhost_mount(hostname, mount_path=mount_path, mount_point=clone_path)
-                web_server.add_vhost_mount("localhost", mount_path=mount_path, mount_point=clone_path)
+        await inject_configuration_into_services(
+            dns_server=dns_server,
+            web_server=web_server,
+            git_server=git_server,
+            raw_config=transformed_config,
+        )
 
         logging.info("Sleeping for 60 seconds to allow manual inspection of the running services.")
-        await asyncio.sleep(240)
+        await asyncio.sleep(10)
 
         logging.info("Execution completed successfully.")
 
         return
 
     # sleep for 60 seconds to allow manual inspection of the running services
+
+
+async def inject_configuration_into_services(
+    dns_server: DnsServer,
+    web_server: WebServer,
+    git_server: GitServer,
+    raw_config: dict,
+):
+    """
+    Injects the transformed configuration into the services.
+
+    Args:
+        dns_server (DnsServer): The DNS server instance.
+        web_server (WebServer): The web server instance.
+        git_server (GitServer): The Git server instance.
+        transformed_config (dict): The transformed configuration dictionary.
+    """
+    # This function can be expanded to inject configuration into the services as needed.
+    for directory in raw_config.get("directories", []):
+        logging.info(f"Processing directory: {directory}")
+        domain_url = directory.get("url")
+
+        hostname, ip_address = await dns_server.add_host_by_url(url=domain_url)
+
+        for raw_mount in directory.get("mounts", []):
+            local_path, desired_uri = get_mount_string_parts(raw_mount)
+            mount_path = urlparse(desired_uri).path
+            web_server.add_vhost_mount(hostname, mount_path=mount_path, mount_point=local_path)
+            web_server.add_vhost_mount("localhost", mount_path=mount_path, mount_point=local_path)
+
+    for i, repository in enumerate(raw_config.get("repositories", [])):
+        logging.info(f"Processing repository: {repository}")
+        domain_url = repository.get("url")
+
+        hostname, ip_address = await dns_server.add_host_by_url(url=domain_url)
+
+        for j, git_url in enumerate(repository.get("git_urls", [])):
+            mount_path = urlparse(git_url).path
+            logging.info(f"Adding Git URL: {git_url}")
+            clone_path = git_server.clone_repository(
+                repo_url=git_url,
+                clone_dir=str(f"domain_{i}_repository_{j}"),
+            )
+            web_server.add_vhost_mount(hostname, mount_path=mount_path, mount_point=clone_path)
+            web_server.add_vhost_mount("localhost", mount_path=mount_path, mount_point=clone_path)
+
 
 async def run_wrapper(args):
     try:

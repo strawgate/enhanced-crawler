@@ -44,17 +44,11 @@ class DnsServer(BaseServer):
             logger.debug(f"Async-dns server started on {server_address}:{server_port}")
 
             if not dns_server:
-                raise DnsServerError(
-                    "Failed to start async-dns server: No server instance returned"
-                )
+                raise DnsServerError("Failed to start async-dns server: No server instance returned")
             if not udp_transports:
-                raise DnsServerError(
-                    "Failed to start async-dns server: No UDP transports returned"
-                )
+                raise DnsServerError("Failed to start async-dns server: No UDP transports returned")
             if not resolver:
-                raise DnsServerError(
-                    "Failed to start async-dns server: No resolver instance returned"
-                )
+                raise DnsServerError("Failed to start async-dns server: No resolver instance returned")
 
             self._dns_server = dns_server
             self._udp_transports = udp_transports
@@ -86,7 +80,7 @@ class DnsServer(BaseServer):
         if self.dry_run:
             logger.debug("Dry run mode: Skipping DNS resolver configuration")
             return
-        
+
         logger.debug(f"Attempting to configure {RESOLV_CONF_PATH} to use localhost:53")
 
         with open(RESOLV_CONF_PATH, "w") as f:
@@ -101,10 +95,8 @@ class DnsServer(BaseServer):
         if self.dry_run:
             logger.debug("Dry run mode: Skipping DNS resolver configuration")
             return
-        
-        logger.debug(
-            f"Attempting to remove the DNS Resolve configuration at {RESOLV_CONF_PATH}"
-        )
+
+        logger.debug(f"Attempting to remove the DNS Resolve configuration at {RESOLV_CONF_PATH}")
 
         with open(RESOLV_CONF_PATH, "r") as f:
             content = f.readlines()
@@ -126,17 +118,14 @@ class DnsServer(BaseServer):
             url: The URL to extract the hostname from.
             ip_address: The IP address associated with the hostname.
         """
-    
+
         parsed_url = urllib.parse.urlparse(url)
         hostname = parsed_url.hostname
 
         if not hostname:
             raise DnsServerError(f"Invalid URL: {url} does not contain a hostname")
 
-        return await self.add_host(
-            hostname, ip_address
-        )
-
+        return await self.add_host(hostname, ip_address)
 
     async def add_host(self, hostname: str, ip_address: str = "127.0.0.1"):
         """

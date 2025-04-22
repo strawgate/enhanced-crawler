@@ -23,9 +23,7 @@ def test_parse_args_no_config():
 
 def test_parse_args_with_unknown_arguments():
     """Test parsing with unknown arguments that should be passed through."""
-    known_args, unknown_args = parse_args(
-        ["crawl", "config.yml", "--verbose", "-o", "output.log"]
-    )
+    known_args, unknown_args = parse_args(["crawl", "config.yml", "--verbose", "-o", "output.log"])
     assert known_args.command == "crawl"
     assert known_args.config_path == "config.yml"
     assert unknown_args == ["--verbose", "-o", "output.log"]
@@ -35,10 +33,10 @@ def test_parse_args_only_unknown_arguments_with_command():
     """Test parsing with only unknown arguments and a command."""
     known_args, unknown_args = parse_args(["crawl", "--verbose", "-o", "output.log"])
     assert known_args.command == "crawl"
-    # This test case seems to highlight an issue with how positional arguments are handled
-    # when unknown arguments are present. The current behavior assigns 'output.log' to config_path.
-    # Depending on desired behavior, this test might need adjustment or the parse_args logic.
-    # For now, asserting the current behavior.
+    # Note: This test highlights that the current parse_args logic assigns the last positional
+    # argument to config_path when unknown arguments are present before it.
+    # This might not be the intended behavior and the parse_args logic may need review.
+    # Asserting the current behavior for documentation purposes.
     assert known_args.config_path == "output.log"
     assert unknown_args == ["--verbose", "-o"]
 
@@ -71,10 +69,10 @@ class TestRunFunction:
 
     @pytest.mark.asyncio
     @patch("enhanced_crawler.main.logging")
-    @patch("enhanced_crawler.main.DnsServer")  # Changed patch target
-    @patch("enhanced_crawler.main.WebServer")
-    @patch("enhanced_crawler.main.GitServer")  # Changed patch target
-    @patch("enhanced_crawler.main.CrawlerServer")
+    @patch("enhanced_crawler.servers.dns_server.DnsServer")  # Changed patch target
+    @patch("enhanced_crawler.servers.web_server.WebServer")
+    @patch("enhanced_crawler.servers.git_server.GitServer")  # Changed patch target
+    @patch("enhanced_crawler.servers.crawler_server.CrawlerServer")
     @patch("enhanced_crawler.main.load_config_from_yaml")
     @patch("enhanced_crawler.main.validate_config")
     @patch("enhanced_crawler.main.transform_configuration")
@@ -132,30 +130,22 @@ class TestRunFunction:
         mock_transform_configuration.assert_called_once_with(mock_validated_config)
 
         # Assert service instances are created with correct config
-        mock_DnsServer.assert_called_once_with(
-            config=mock_transformed_config
-        )  # Changed variable name
+        mock_DnsServer.assert_called_once_with(config=mock_transformed_config)  # Changed variable name
         mock_WebServer.assert_called_once_with()
         mock_GitServer.assert_called_once_with()  # Changed variable name and removed arguments
 
         # Assert context manager methods are called
         mock_dns_server_instance.manage_lifecycle.assert_called_once_with()
         mock_dns_server_instance.manage_lifecycle.return_value.__enter__.assert_called_once_with()
-        mock_dns_server_instance.manage_lifecycle.return_value.__exit__.assert_called_once_with(
-            None, None, None
-        )
+        mock_dns_server_instance.manage_lifecycle.return_value.__exit__.assert_called_once_with(None, None, None)
 
         mock_web_server_instance.manage_lifecycle.assert_called_once_with()
         mock_web_server_instance.manage_lifecycle.return_value.__enter__.assert_called_once_with()
-        mock_web_server_instance.manage_lifecycle.return_value.__exit__.assert_called_once_with(
-            None, None, None
-        )
+        mock_web_server_instance.manage_lifecycle.return_value.__exit__.assert_called_once_with(None, None, None)
 
         mock_git_server_instance.manage_lifecycle.assert_called_once_with()  # Changed variable name
         mock_git_server_instance.manage_lifecycle.return_value.__enter__.assert_called_once_with()  # Changed variable name
-        mock_git_server_instance.manage_lifecycle.return_value.__exit__.assert_called_once_with(
-            None, None, None
-        )  # Changed variable name
+        mock_git_server_instance.manage_lifecycle.return_value.__exit__.assert_called_once_with(None, None, None)  # Changed variable name
 
         # Assert execution manager is created and execute is called
         mock_CrawlerServer.assert_called_once_with()
@@ -177,9 +167,7 @@ class TestRunFunction:
     @pytest.mark.asyncio
     @patch("enhanced_crawler.main.logging")
     @patch("enhanced_crawler.main.load_config_from_yaml")
-    async def test_run_config_loading_error(
-        self, mock_load_config_from_yaml, mock_logging
-    ):
+    async def test_run_config_loading_error(self, mock_load_config_from_yaml, mock_logging):
         """Test the run function when config loading fails."""
         mock_load_config_from_yaml.side_effect = Error("Config loading failed")
 
@@ -193,10 +181,41 @@ class TestRunFunction:
         assert excinfo.value.code == 1
 
         # Assert that the correct error message was logged
-        mock_logging.error.assert_called_once_with(
-            "An error occurred: Config loading failed"
-        )
+        mock_logging.error.assert_called_once_with("An error occurred: Config loading failed")
 
-    # TODO: Add more tests for error handling at each step of the orchestration flow
-    # (validation, transformation, service orchestration, execution, cleanup).
-    # Also add tests for the main() function's error handling and sys.exit calls.
+    @pytest.mark.asyncio
+    @patch("enhanced_crawler.main.logging")
+    @patch("enhanced_crawler.main.load_config_from_yaml", return_value={"some": "config"})
+    @patch("enhanced_crawler.main.validate_config")
+    async def test_run_config_validation_error(self, mock_validate_config, mock_load_config_from_yaml, mock_logging):
+        """Test the run function when config validation fails."""
+        mock_validate_config.side_effect = Error("Config validation failed")
+
+        mock_args = MagicMock()
+        mock_args.config_path = "path/to/config.yml"
+
+        with pytest.raises(SystemExit) as excinfo:
+            await run(mock_args)
+
+        assert excinfo.value.code == 1
+        mock_logging.error.assert_called_once_with("An error occurred: Config validation failed")
+
+    @pytest.mark.asyncio
+    @patch("enhanced_crawler.main.logging")
+    @patch("enhanced_crawler.main.load_config_from_yaml", return_value={"some": "config"})
+    @patch("enhanced_crawler.main.validate_config", return_value={"some": "validated_config"})
+    @patch("enhanced_crawler.main.transform_configuration")
+    async def test_run_config_transformation_error(
+        self, mock_transform_configuration, mock_validate_config, mock_load_config_from_yaml, mock_logging
+    ):
+        """Test the run function when config transformation fails."""
+        mock_transform_configuration.side_effect = Error("Config transformation failed")
+
+        mock_args = MagicMock()
+        mock_args.config_path = "path/to/config.yml"
+
+        with pytest.raises(SystemExit) as excinfo:
+            await run(mock_args)
+
+        assert excinfo.value.code == 1
+        mock_logging.error.assert_called_once_with("An error occurred: Config transformation failed")

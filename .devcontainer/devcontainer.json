@@ -12,7 +12,8 @@
 				"pip",
 				"poetry",
 				"uvicorn",
-				"pytest"
+				"pytest",
+				"uvx"
 			]
 		},
 		"ghcr.io/devcontainers/features/docker-in-docker:2.12.2": {

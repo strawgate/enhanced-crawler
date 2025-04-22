@@ -8,6 +8,7 @@ class BaseServer:
     """
     Mixin to provide start and stop methods and a context manager for resource lifecycle management.
     """
+
     dry_run: bool
 
     def __init__(self, dry_run=False):
@@ -15,7 +16,7 @@ class BaseServer:
         Initializes the BaseServer. This method can be overridden by subclasses for custom initialization.
         """
         self.dry_run = dry_run
-        
+
         logger.debug(f"{self.__class__.__name__} initialized")
 
     async def start(self):

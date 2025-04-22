@@ -52,12 +52,8 @@ class CrawlerServer(BaseServer):
         # and the path where the transformed config file was saved by the orchestrator.
         # This part needs to be aligned with the actual transformed config structure.
         # For now, using placeholder paths.
-        standard_crawler_path = transformed_config.get(
-            "standard_crawler_path", "bin/crawler"
-        )  # Placeholder
-        transformed_config_file_path = transformed_config.get(
-            "transformed_config_path", "/tmp/transformed_config.yml"
-        )  # Placeholder
+        standard_crawler_path = transformed_config.get("standard_crawler_path", "bin/crawler")  # Placeholder
+        transformed_config_file_path = transformed_config.get("transformed_config_path", "/tmp/transformed_config.yml")  # Placeholder
 
         execute_crawler(standard_crawler_path, transformed_config_file_path)
 

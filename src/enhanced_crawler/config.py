@@ -153,10 +153,7 @@ def transform_configuration(config: Dict[str, Any]) -> Dict[str, Any]:
             if not directory.get("mounts"):
                 raise TypeError("Directories entry must contain mounts")
 
-            seed_urls = [
-                get_mount_string_parts(mount_string)[1]
-                for mount_string in directory.get("mounts", [])
-            ]
+            seed_urls = [get_mount_string_parts(mount_string)[1] for mount_string in directory.get("mounts", [])]
 
             directory["seed_urls"] = seed_urls
             del directory["mounts"]
@@ -184,9 +181,7 @@ def validate_config(config: Dict[str, Any]):
     """
     temp_file_path = None
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="w+", delete=False, suffix=".json"
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".json") as tmp:
             temp_file_path = tmp.name
             json.dump(config, tmp)
             tmp.flush()
@@ -212,13 +207,9 @@ def validate_config(config: Dict[str, Any]):
             raise ConfigValidationError(error_message)
 
     except FileNotFoundError:
-        raise ConfigValidationError(
-            "Error: 'standard_crawler' command not found. Is it installed and in your PATH?"
-        )
+        raise ConfigValidationError("Error: 'standard_crawler' command not found. Is it installed and in your PATH?")
     except Exception as e:
-        raise ConfigValidationError(
-            f"An unexpected error occurred during configuration validation: {e}"
-        )
+        raise ConfigValidationError(f"An unexpected error occurred during configuration validation: {e}")
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
             os.remove(temp_file_path)

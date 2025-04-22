@@ -12,6 +12,7 @@ class GitServer(BaseServer):
     """
     Manages Git operations using GitPython.
     """
+
     def __init__(self, repository_directory, dry_run=False):
         """
         Initializes the GitServer with a specified repository directory.
@@ -24,7 +25,6 @@ class GitServer(BaseServer):
         logger.debug(f"GitServer initialized with repository directory: {repository_directory}")
 
     async def start(self):
-
         # clean out the repository directory if dry_run is True
         if self.dry_run:
             if os.path.exists(self.repository_directory):
@@ -34,7 +34,6 @@ class GitServer(BaseServer):
                     # Remove directory even if it is not empty
                     if os.path.isdir(item_path):
                         shutil.rmtree(item_path)
-
 
     def clone_repository(self, repo_url: str, clone_dir: str) -> str:
         """
@@ -68,7 +67,5 @@ class GitServer(BaseServer):
             raise
 
         except Exception as e:
-            logger.error(
-                f"An unexpected error occurred during cloning '{repo_url}': {e}"
-            )
+            logger.error(f"An unexpected error occurred during cloning '{repo_url}': {e}")
             raise
